@@ -6,7 +6,6 @@ const path = require('path');
 
 const app = express();
 
-// Configure multer storage explicitly
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadDir = '/tmp/uploads';
@@ -23,20 +22,25 @@ const upload = multer({ storage: storage });
 
 app.post('/', upload.single('file'), (req, res) => {
     try {
+        console.log('Request received:', { question: req.body.question, file: req.file });
         const question = req.body.question ? req.body.question.toLowerCase() : 'no question provided';
         let answer = '';
 
         if (!req.file) {
+            console.log('No file uploaded');
             return res.status(400).json({ answer: 'No file uploaded' });
         }
 
         const filePath = req.file.path;
         const extractPath = '/tmp/extracted';
+        console.log('File uploaded to:', filePath);
 
         if (!fs.existsSync(filePath)) {
+            console.log('Uploaded file not found');
             return res.status(500).json({ answer: 'Uploaded file not found on server' });
         }
 
+        console.log('Unzipping to:', extractPath);
         const zip = new ADMZip(filePath);
         if (!fs.existsSync(extractPath)) {
             fs.mkdirSync(extractPath, { recursive: true });
@@ -44,6 +48,7 @@ app.post('/', upload.single('file'), (req, res) => {
         zip.extractAllTo(extractPath, true);
 
         const extractedFiles = fs.readdirSync(extractPath);
+        console.log('Extracted files:', extractedFiles);
         if (extractedFiles.length === 0) {
             return res.status(500).json({ answer: 'ZIP extraction failed - no files found' });
         }
@@ -51,6 +56,7 @@ app.post('/', upload.single('file'), (req, res) => {
         const getAnswerFromFile = (filePath) => {
             const ext = path.extname(filePath).toLowerCase();
             const content = fs.readFileSync(filePath, 'utf8');
+            console.log(`Reading file: ${filePath}, ext: ${ext}`);
             if (ext === '.py') {
                 const match = content.match(/answer\s*=\s*['"]?([^'"\n]+)['"]?/i);
                 return match ? match[1] : 'No answer found in .py';
@@ -71,6 +77,7 @@ app.post('/', upload.single('file'), (req, res) => {
         const rollFolders = extractedFiles.filter(f => 
             f.startsWith('RollNo_') && fs.statSync(path.join(extractPath, f)).isDirectory()
         );
+        console.log('Roll folders:', rollFolders);
         if (rollFolders.length === 0) {
             return res.status(500).json({ answer: 'No RollNo_X folders found' });
         }
@@ -79,26 +86,32 @@ app.post('/', upload.single('file'), (req, res) => {
             const subFolders = fs.readdirSync(path.join(extractPath, rollFolder)).filter(f => 
                 f.startsWith('tds-2025-01-ga') && fs.statSync(path.join(extractPath, rollFolder, f)).isDirectory()
             );
+            console.log(`Subfolders in ${rollFolder}:`, subFolders);
             if (subFolders.length === 0) {
                 continue;
             }
 
             for (const subFolder of subFolders) {
                 const files = fs.readdirSync(path.join(extractPath, rollFolder, subFolder));
+                console.log(`Files in ${subFolder}:`, files);
                 const answerFile = files.find(f => f.startsWith('answer') && !f.endsWith('.txt'));
                 if (answerFile) {
                     answer = getAnswerFromFile(path.join(extractPath, rollFolder, subFolder, answerFile));
+                    console.log('Answer:', answer);
                     break;
                 }
             }
             if (answer) break;
         }
 
+        console.log('Cleaning up...');
         fs.rmSync(extractPath, { recursive: true, force: true });
         fs.unlinkSync(filePath);
 
+        console.log('Response:', { answer: answer || 'Answer not found' });
         res.json({ answer: answer || 'Answer not found' });
     } catch (error) {
+        console.error('Error:', error.message, error.stack);
         res.status(500).json({ answer: `Server error: ${error.message}` });
     }
 });
