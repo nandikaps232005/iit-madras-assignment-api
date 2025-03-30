@@ -92,13 +92,19 @@ app.post('/', upload.single('file'), (req, res) => {
             }
 
             for (const subFolder of subFolders) {
-                const files = fs.readdirSync(path.join(extractPath, rollFolder, subFolder));
-                console.log(`Files in ${subFolder}:`, files);
-                const answerFile = files.find(f => f.startsWith('answer') && !f.endsWith('.txt'));
-                if (answerFile) {
-                    answer = getAnswerFromFile(path.join(extractPath, rollFolder, subFolder, answerFile));
-                    console.log('Answer:', answer);
-                    break;
+                const assignmentMatch = subFolder.match(/tds-2025-01-ga(\d+)/);
+                const assignmentNum = assignmentMatch ? assignmentMatch[1] : null;
+                if (assignmentNum && question.includes(`assignment ${assignmentNum}`)) {
+                    const files = fs.readdirSync(path.join(extractPath, rollFolder, subFolder));
+                    console.log(`Files in ${subFolder}:`, files);
+                    const questionMatch = question.match(/question (\d+)/i);
+                    const questionNum = questionMatch ? questionMatch[1] : null;
+                    const answerFile = files.find(f => f.startsWith(`Q${questionNum}`) && !f.endsWith('.txt') && !f.endsWith('.sh') && !f.endsWith('.js'));
+                    if (answerFile) {
+                        answer = getAnswerFromFile(path.join(extractPath, rollFolder, subFolder, answerFile));
+                        console.log('Answer:', answer);
+                        break;
+                    }
                 }
             }
             if (answer) break;
