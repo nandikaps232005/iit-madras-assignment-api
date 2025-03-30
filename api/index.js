@@ -5,12 +5,21 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const upload = multer({ dest: '/tmp/uploads/' }); // Use /tmp for Vercel
 
-const uploadDir = '/tmp/uploads';
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
+// Configure multer storage explicitly
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = '/tmp/uploads';
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        cb(null, file.originalname);
+    }
+});
+const upload = multer({ storage: storage });
 
 app.post('/', upload.single('file'), (req, res) => {
     try {
