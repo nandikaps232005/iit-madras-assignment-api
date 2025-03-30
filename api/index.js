@@ -5,11 +5,11 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ dest: '/tmp/uploads/' }); // Use /tmp for Vercel
 
-const uploadDir = path.join(__dirname, 'uploads');
+const uploadDir = '/tmp/uploads'; // Absolute path for Vercel
 if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
+    fs.mkdirSync(uploadDir, { recursive: true }); // Recursive to ensure parent dirs exist
 }
 
 app.post('/', upload.single('file'), (req, res) => {
@@ -22,21 +22,18 @@ app.post('/', upload.single('file'), (req, res) => {
         }
 
         const filePath = req.file.path;
-        const extractPath = path.join(__dirname, 'extracted');
+        const extractPath = '/tmp/extracted'; // Use /tmp for extraction
 
-        // Test basic file upload
         if (!fs.existsSync(filePath)) {
             return res.status(500).json({ answer: 'Uploaded file not found on server' });
         }
 
-        // Unzip
         const zip = new ADMZip(filePath);
         if (!fs.existsSync(extractPath)) {
-            fs.mkdirSync(extractPath);
+            fs.mkdirSync(extractPath, { recursive: true });
         }
         zip.extractAllTo(extractPath, true);
 
-        // Check if extraction worked
         const extractedFiles = fs.readdirSync(extractPath);
         if (extractedFiles.length === 0) {
             return res.status(500).json({ answer: 'ZIP extraction failed - no files found' });
@@ -62,7 +59,6 @@ app.post('/', upload.single('file'), (req, res) => {
             return 'Unsupported file type';
         };
 
-        // Simplified search (just find any answer file for now)
         const rollFolders = extractedFiles.filter(f => 
             f.startsWith('RollNo_') && fs.statSync(path.join(extractPath, f)).isDirectory()
         );
