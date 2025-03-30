@@ -7,9 +7,9 @@ const path = require('path');
 const app = express();
 const upload = multer({ dest: '/tmp/uploads/' }); // Use /tmp for Vercel
 
-const uploadDir = '/tmp/uploads'; // Absolute path for Vercel
+const uploadDir = '/tmp/uploads';
 if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true }); // Recursive to ensure parent dirs exist
+    fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 app.post('/', upload.single('file'), (req, res) => {
@@ -22,7 +22,7 @@ app.post('/', upload.single('file'), (req, res) => {
         }
 
         const filePath = req.file.path;
-        const extractPath = '/tmp/extracted'; // Use /tmp for extraction
+        const extractPath = '/tmp/extracted';
 
         if (!fs.existsSync(filePath)) {
             return res.status(500).json({ answer: 'Uploaded file not found on server' });
